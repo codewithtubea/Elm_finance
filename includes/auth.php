@@ -117,9 +117,6 @@ class Auth {
     $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
     $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
     
-    // Force immediate session write
-    session_write_close();
-    
     // Update last login
     $stmt = $this->db->prepare("UPDATE elm_users SET last_login = NOW() WHERE id = ?");
     $stmt->execute([$user['id']]);

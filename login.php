@@ -45,15 +45,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = $auth->login($username, $password, $remember);
             
             if ($result['success']) {
-                $success = "Login successful! Redirecting...";
-                
-                // Redirect to dashboard after 1 second
-                header("Refresh: 1; url=dashboard.php");
+                // Immediate redirect to dashboard
+                header('Location: dashboard.php');
+                exit;
             } else {
                 $error = $result['error'];
             }
         }
     }
+}
+
+// Check if redirected from dashboard (session timeout or auth failed)
+if (isset($_GET['redirect']) && $_GET['redirect'] === 'login') {
+    $error = "Your session has expired. Please log in again.";
 }
 ?>
 
@@ -291,6 +295,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
         }
         
+        .alert strong {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: 600;
+        }
+        
         .links { 
             text-align: center; 
             margin-top: 2rem;
@@ -367,11 +377,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <?php if ($error): ?>
-            <div class="alert error"><?php echo $error; ?></div>
+            <div class="alert error">
+                <strong>⚠️ Authentication Failed</strong>
+                <?php echo htmlspecialchars($error); ?>
+            </div>
         <?php endif; ?>
         
         <?php if ($success): ?>
-            <div class="alert success"><?php echo $success; ?></div>
+            <div class="alert success">
+                <strong>✓ Success</strong>
+                <?php echo htmlspecialchars($success); ?>
+            </div>
         <?php endif; ?>
         
         <form method="POST" action="" id="loginForm">

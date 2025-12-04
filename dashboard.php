@@ -532,6 +532,18 @@ foreach ($budgetsByCategory as $category => $budget) {
             <h1 class="welcome-message">Welcome back, <?php echo htmlspecialchars($currentUser['first_name'] ?? $currentUser['username']); ?>! 👋</h1>
             <p style="color: var(--text-secondary); margin-bottom: 2rem;">Here's your financial overview for <?php echo date('F Y'); ?></p>
             
+            <!-- Authentication Status Bar -->
+            <div style="background: rgba(0, 255, 136, 0.1); border: 1px solid rgba(0, 255, 136, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                    <span style="color: #00ff88; font-weight: 600;">✓ Authenticated</span> as 
+                    <strong><?php echo htmlspecialchars($currentUser['email']); ?></strong>
+                    <?php if ($currentUser['last_login']): ?>
+                        | Last login: <?php echo date('M d, Y H:i', strtotime($currentUser['last_login'])); ?>
+                    <?php endif; ?>
+                </div>
+                <div style="font-size: 0.8rem; color: #888;">Session ID: <?php echo substr(session_id(), 0, 8); ?>...</div>
+            </div>
+            
             <!-- Financial Snapshot -->
             <div class="financial-snapshot">
                 <div class="snapshot-card">
