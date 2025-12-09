@@ -23,46 +23,78 @@ $isLoggedIn = $auth->isLoggedIn();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --neon-green: #00ff88;
-            --neon-cyan: #00ffff;
-            --neon-purple: #b967ff;
-            --dark-bg: #0a0a0a;
-            --darker-bg: #050505;
-            --card-bg: rgba(15, 15, 15, 0.8);
-            --card-border: rgba(0, 255, 136, 0.2);
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --gradient-1: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
-            --gradient-2: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan));
+            /* Professional Color System */
+            --primary-color: #10b981;
+            --primary-light: #d1fae5;
+            --primary-dark: #047857;
+            --accent-color: #06b6d4;
+            --accent-light: #cffafe;
+            --neutral-900: #111827;
+            --neutral-800: #1f2937;
+            --neutral-700: #374151;
+            --neutral-600: #4b5563;
+            --neutral-500: #6b7280;
+            --neutral-400: #9ca3af;
+            --neutral-300: #d1d5db;
+            --neutral-200: #e5e7eb;
+            --neutral-100: #f3f4f6;
+            --neutral-50: #f9fafb;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            
+            /* Dark Mode (Default) */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --border-color: #475569;
+            --card-bg: #1e293b;
         }
         
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
+        /* Light Mode */
+        html.light-mode {
+            --bg-primary: #f9fafb;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-tertiary: #6b7280;
+            --border-color: #e5e7eb;
+            --card-bg: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
         html {
             scroll-behavior: smooth;
         }
         
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: var(--darker-bg);
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--bg-primary);
             color: var(--text-primary);
-            overflow-x: hidden;
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         
-        /* Navigation */
+        /* ==================== NAVIGATION ==================== */
         .navbar {
             position: fixed;
             top: 0;
             width: 100%;
-            background: rgba(10, 10, 10, 0.9);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--card-border);
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
             z-index: 1000;
             padding: 1rem 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         .nav-container {
@@ -77,10 +109,9 @@ $isLoggedIn = $auth->isLoggedIn();
         .logo {
             font-size: 1.5rem;
             font-weight: 700;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-color);
+            text-decoration: none;
+            letter-spacing: -0.5px;
         }
         
         .nav-links {
@@ -90,85 +121,113 @@ $isLoggedIn = $auth->isLoggedIn();
         }
         
         .nav-links a {
-            color: var(--text-primary);
+            color: var(--text-secondary);
             text-decoration: none;
             font-weight: 500;
-            transition: color 0.3s ease;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
         }
         
         .nav-links a:hover {
-            color: var(--neon-green);
+            color: var(--primary-color);
         }
         
+        /* Theme Toggle */
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            margin-left: 1rem;
+            font-weight: 600;
+        }
+        
+        .theme-toggle:hover {
+            background-color: var(--bg-tertiary);
+            border-color: var(--primary-color);
+        }
+        
+        /* Buttons */
         .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
+            padding: 0.625rem 1.25rem;
+            border-radius: 8px;
             font-weight: 600;
             text-decoration: none;
-            transition: all 0.3s ease;
             border: none;
             cursor: pointer;
             font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            display: inline-block;
         }
         
         .btn-primary {
-            background: var(--gradient-1);
-            color: var(--dark-bg);
+            background-color: var(--primary-color);
+            color: white;
         }
         
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
         
         .btn-secondary {
-            background: transparent;
-            color: var(--text-primary);
-            border: 2px solid var(--neon-green);
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 1.5px solid var(--primary-color);
         }
         
         .btn-secondary:hover {
-            background: var(--neon-green);
-            color: var(--dark-bg);
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
         }
         
-        /* Hero Section */
+        /* ==================== HERO SECTION ==================== */
         .hero {
             min-height: 100vh;
             display: flex;
             align-items: center;
-            background: 
-                radial-gradient(circle at 20% 80%, rgba(0, 255, 136, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
-                var(--dark-bg);
-            padding: 0 2rem;
+            padding-top: 60px;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
         }
         
         .hero-container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 0 2rem;
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 4rem;
             align-items: center;
+            width: 100%;
         }
         
         .hero-content h1 {
-            font-size: 3.5rem;
+            font-size: 3rem;
             font-weight: 800;
-            line-height: 1.1;
+            line-height: 1.2;
             margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, #ffffff, var(--neon-cyan));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--text-primary);
+        }
+        
+        .hero-content h1 .highlight {
+            color: var(--primary-color);
         }
         
         .hero-content p {
-            font-size: 1.25rem;
+            font-size: 1.125rem;
             color: var(--text-secondary);
             margin-bottom: 2rem;
-            line-height: 1.6;
+            line-height: 1.8;
         }
         
         .hero-buttons {
@@ -179,86 +238,85 @@ $isLoggedIn = $auth->isLoggedIn();
         
         .hero-visual {
             position: relative;
+            height: 400px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.15);
         }
         
         .dashboard-preview {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
+            width: 100%;
+            height: 100%;
             padding: 2rem;
-            box-shadow: 
-                0 0 50px rgba(0, 255, 136, 0.1),
-                0 0 0 1px rgba(0, 255, 136, 0.1);
-            transform: perspective(1000px) rotateY(-5deg) rotateX(5deg);
-            transition: transform 0.3s ease;
-        }
-        
-        .dashboard-preview:hover {
-            transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: white;
         }
         
         .preview-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             margin-bottom: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
         
         .preview-stats {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
         }
         
         .stat-card {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.15);
             padding: 1rem;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
         }
         
         .stat-value {
             font-size: 1.5rem;
             font-weight: 700;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin-bottom: 0.5rem;
         }
         
         .stat-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
+            font-size: 0.85rem;
+            opacity: 0.9;
         }
         
-        /* Features Section */
+        /* ==================== SECTION STYLES ==================== */
         .features {
-            padding: 6rem 2rem;
-            background: var(--darker-bg);
+            padding: 5rem 2rem;
+            background: var(--bg-primary);
+        }
+        
+        .how-it-works {
+            padding: 5rem 2rem;
+            background: var(--bg-secondary);
         }
         
         .section-title {
-            text-align: center;
             font-size: 2.5rem;
-            font-weight: 700;
+            font-weight: 800;
+            text-align: center;
             margin-bottom: 1rem;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--text-primary);
         }
         
         .section-subtitle {
-            text-align: center;
             font-size: 1.125rem;
+            text-align: center;
             color: var(--text-secondary);
-            margin-bottom: 4rem;
+            margin-bottom: 3rem;
             max-width: 600px;
             margin-left: auto;
             margin-right: auto;
         }
         
+        /* ==================== FEATURES GRID ==================== */
         .features-grid {
             max-width: 1200px;
             margin: 0 auto;
@@ -269,85 +327,99 @@ $isLoggedIn = $auth->isLoggedIn();
         
         .feature-card {
             background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
             padding: 2rem;
             transition: all 0.3s ease;
         }
         
         .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 255, 136, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.1);
+            transform: translateY(-4px);
         }
         
         .feature-icon {
-            font-size: 2.5rem;
+            width: 48px;
+            height: 48px;
+            background-color: var(--primary-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
             margin-bottom: 1rem;
+            color: var(--primary-dark);
+            font-weight: 700;
         }
         
         .feature-title {
             font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
             color: var(--text-primary);
         }
         
         .feature-description {
             color: var(--text-secondary);
-            line-height: 1.6;
+            line-height: 1.7;
+            font-size: 0.95rem;
         }
         
-        /* How It Works */
-        .how-it-works {
-            padding: 6rem 2rem;
-            background: var(--dark-bg);
-        }
-        
+        /* ==================== STEPS ==================== */
         .steps {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             display: grid;
-            gap: 3rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
         }
         
         .step {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 2rem;
-            align-items: start;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .step:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.1);
         }
         
         .step-number {
-            width: 60px;
-            height: 60px;
-            background: var(--gradient-1);
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
             font-weight: 700;
-            color: var(--dark-bg);
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
         }
         
-        .step-content h3 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
+        .step h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
             color: var(--text-primary);
         }
         
-        .step-content p {
+        .step p {
             color: var(--text-secondary);
-            line-height: 1.6;
+            font-size: 0.95rem;
+            line-height: 1.7;
         }
         
-        /* CTA Section */
+        /* ==================== CTA SECTION ==================== */
         .cta {
-            padding: 6rem 2rem;
-            background: linear-gradient(135deg, var(--dark-bg), var(--darker-bg));
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            padding: 4rem 2rem;
             text-align: center;
+            color: white;
         }
         
         .cta-content {
@@ -357,42 +429,54 @@ $isLoggedIn = $auth->isLoggedIn();
         
         .cta h2 {
             font-size: 2.5rem;
-            font-weight: 700;
+            font-weight: 800;
             margin-bottom: 1rem;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
         
         .cta p {
-            font-size: 1.125rem;
-            color: var(--text-secondary);
+            font-size: 1.1rem;
             margin-bottom: 2rem;
+            opacity: 0.95;
         }
         
-        /* Footer */
+        .cta .btn {
+            background: white;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+        
+        .cta .btn:hover {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        /* ==================== FOOTER ==================== */
         .footer {
-            background: var(--darker-bg);
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
             padding: 4rem 2rem 2rem;
-            border-top: 1px solid var(--card-border);
         }
         
         .footer-content {
             max-width: 1200px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: 1fr 2fr;
+            grid-template-columns: 1.5fr 2fr;
             gap: 4rem;
+            margin-bottom: 2rem;
         }
         
         .footer-brand h3 {
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
             font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
             margin-bottom: 1rem;
+        }
+        
+        .footer-brand p {
+            color: var(--text-secondary);
+            line-height: 1.7;
         }
         
         .footer-links {
@@ -402,42 +486,50 @@ $isLoggedIn = $auth->isLoggedIn();
         }
         
         .footer-column h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             color: var(--text-primary);
             margin-bottom: 1rem;
-            font-size: 1.125rem;
         }
         
         .footer-column a {
             display: block;
             color: var(--text-secondary);
             text-decoration: none;
-            margin-bottom: 0.5rem;
-            transition: color 0.3s ease;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
         }
         
         .footer-column a:hover {
-            color: var(--neon-green);
+            color: var(--primary-color);
         }
         
         .footer-bottom {
             max-width: 1200px;
             margin: 0 auto;
             padding-top: 2rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid var(--border-color);
             text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
         }
         
-        /* Responsive Design */
+        /* ==================== RESPONSIVE ==================== */
         @media (max-width: 768px) {
             .hero-container {
                 grid-template-columns: 1fr;
-                text-align: center;
+                gap: 2rem;
             }
             
             .hero-content h1 {
-                font-size: 2.5rem;
+                font-size: 2rem;
+            }
+            
+            .hero-visual {
+                height: 300px;
             }
             
             .nav-links {
@@ -450,27 +542,26 @@ $isLoggedIn = $auth->isLoggedIn();
             }
             
             .footer-links {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .section-title {
+                font-size: 2rem;
             }
         }
         
-        /* Animations */
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        .float {
-            animation: float 3s ease-in-out infinite;
-        }
-        
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.2); }
-            50% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.4); }
-        }
-        
-        .glow {
-            animation: glow 2s ease-in-out infinite;
+        @media (max-width: 480px) {
+            .hero-content h1 {
+                font-size: 1.75rem;
+            }
+            
+            .hero-visual {
+                display: none;
+            }
+            
+            .footer-links {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -478,7 +569,7 @@ $isLoggedIn = $auth->isLoggedIn();
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="logo">🌿 Elm Finance</div>
+            <a href="#" class="logo">Elm Finance</a>
             <div class="nav-links">
                 <a href="#features">Features</a>
                 <a href="#how-it-works">How It Works</a>
@@ -489,6 +580,7 @@ $isLoggedIn = $auth->isLoggedIn();
                     <a href="login.php" class="btn btn-secondary">Login</a>
                     <a href="register.php" class="btn btn-primary">Get Started</a>
                 <?php endif; ?>
+                <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">Light</button>
             </div>
         </div>
     </nav>
@@ -497,38 +589,38 @@ $isLoggedIn = $auth->isLoggedIn();
     <section class="hero">
         <div class="hero-container">
             <div class="hero-content">
-                <h1>Financial Peace for Student Life</h1>
-                <p>Elm helps Ashesi students manage budgets, track expenses, and build better financial habits with campus-specific insights and intelligent spending recommendations.</p>
+                <h1>Take Control of Your <span class="highlight">Student Budget</span></h1>
+                <p>Elm Finance makes it simple to track expenses, set realistic budgets, and build smarter money habits. Designed specifically for college students who want to spend intentionally.</p>
                 <div class="hero-buttons">
                     <?php if ($isLoggedIn): ?>
                         <a href="dashboard.php" class="btn btn-primary">Go to Dashboard</a>
                     <?php else: ?>
-                        <a href="register.php" class="btn btn-primary">Start Free Today</a>
+                        <a href="register.php" class="btn btn-primary">Create Account</a>
                         <a href="#features" class="btn btn-secondary">Learn More</a>
                     <?php endif; ?>
                 </div>
             </div>
             <div class="hero-visual">
-                <div class="dashboard-preview glow">
+                <div class="dashboard-preview">
                     <div class="preview-header">
-                        <span style="font-weight: 600;">Monthly Overview</span>
-                        <span style="color: var(--neon-green); font-weight: 700;">₵1,240</span>
+                        <span>Monthly Overview</span>
+                        <span>1,240 GHS</span>
                     </div>
                     <div class="preview-stats">
                         <div class="stat-card">
-                            <div class="stat-value">₵420</div>
+                            <div class="stat-value">420</div>
                             <div class="stat-label">Food & Dining</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value">₵180</div>
+                            <div class="stat-value">180</div>
                             <div class="stat-label">Transport</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value">₵540</div>
+                            <div class="stat-value">540</div>
                             <div class="stat-label">Essentials</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value">₵100</div>
+                            <div class="stat-value">100</div>
                             <div class="stat-label">Entertainment</div>
                         </div>
                     </div>
@@ -539,84 +631,76 @@ $isLoggedIn = $auth->isLoggedIn();
 
     <!-- Features Section -->
     <section class="features" id="features">
-        <h2 class="section-title">Designed for Ashesi Students</h2>
-        <p class="section-subtitle">Everything you need to take control of your finances, built specifically for campus life.</p>
+        <h2 class="section-title">Designed for Student Life</h2>
+        <p class="section-subtitle">Everything you need to manage money smartly, built with your lifestyle in mind.</p>
         
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-icon">🍽️</div>
-                <h3 class="feature-title">Campus Cost Intelligence</h3>
-                <p class="feature-description">Get real pricing data from Ashesi campus - dining hall meals, transport costs, textbook prices, and more. Know what's reasonable before you spend.</p>
-            </div>
-            
-            <div class="feature-card">
                 <div class="feature-icon">📊</div>
+                <h3 class="feature-title">Campus Cost Intelligence</h3>
+                <p class="feature-description">See real spending data from Ashesi students. Know what peers spend on food, transport, and essentials so you can spend intentionally.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">Target</div>
                 <h3 class="feature-title">Smart Budget Tracking</h3>
-                <p class="feature-description">Set realistic budgets and get alerts when you're approaching limits. Visual charts show exactly where your money goes each month.</p>
+                <p class="feature-description">Set monthly budgets by category and get alerts when approaching limits. Visual clarity on exactly where your money goes each month.</p>
             </div>
             
             <div class="feature-card">
-                <div class="feature-icon">🎯</div>
+                <div class="feature-icon">Growth</div>
                 <h3 class="feature-title">Spending Insights</h3>
-                <p class="feature-description">Compare your spending with campus averages. See how you're doing versus other Ashesi students and get personalized saving tips.</p>
+                <p class="feature-description">Compare your spending with campus averages. See where you're spending more or less and get personalized recommendations to save more.</p>
             </div>
             
             <div class="feature-card">
-                <div class="feature-icon">🔒</div>
-                <h3 class="feature-title">Secure & Private</h3>
-                <p class="feature-description">Bank-level security protecting your financial data. Your information stays private while you get the insights you need.</p>
+                <div class="feature-icon">Lock</div>
+                <h3 class="feature-title">Bank-Level Security</h3>
+                <p class="feature-description">Your financial data is encrypted and protected. Your information stays private. We never sell your data.</p>
             </div>
             
             <div class="feature-card">
-                <div class="feature-icon">📱</div>
-                <h3 class="feature-title">Mobile-Friendly</h3>
-                <p class="feature-description">Track expenses on the go with our responsive design. Perfect for quick updates between classes or in the dining hall.</p>
+                <div class="feature-icon">Phone</div>
+                <h3 class="feature-title">Mobile-Optimized</h3>
+                <p class="feature-description">Track expenses on the go with our responsive design. Log spending between classes, in the dining hall, anywhere on campus.</p>
             </div>
             
             <div class="feature-card">
-                <div class="feature-icon">💡</div>
+                <div class="feature-icon">Learn</div>
                 <h3 class="feature-title">Financial Education</h3>
-                <p class="feature-description">Learn money management skills that will serve you beyond university. Build habits that last a lifetime.</p>
+                <p class="feature-description">Learn money management skills that serve you beyond university. Build habits that set you up for long-term financial success.</p>
             </div>
         </div>
     </section>
 
     <!-- How It Works -->
     <section class="how-it-works" id="how-it-works">
-        <h2 class="section-title">Simple & Effective</h2>
-        <p class="section-subtitle">Get started in minutes and see results immediately.</p>
+        <h2 class="section-title">Get Started in 4 Steps</h2>
+        <p class="section-subtitle">Simple setup. Immediate insights. Better habits.</p>
         
         <div class="steps">
             <div class="step">
                 <div class="step-number">1</div>
-                <div class="step-content">
-                    <h3>Create Your Account</h3>
-                    <p>Sign up with your Ashesi email in under 2 minutes. No credit card required, completely free for students.</p>
-                </div>
+                <h3>Create Your Account</h3>
+                <p>Sign up with your university email in under 2 minutes. No credit card required, completely free for students.</p>
             </div>
             
             <div class="step">
                 <div class="step-number">2</div>
-                <div class="step-content">
-                    <h3>Set Your Budget</h3>
-                    <p>Define monthly budgets for food, transport, essentials, and entertainment based on Ashesi-specific cost data.</p>
-                </div>
+                <h3>Set Your Budget</h3>
+                <p>Define monthly budgets using campus-specific cost data. Let Elm suggest realistic amounts based on peer spending.</p>
             </div>
             
             <div class="step">
                 <div class="step-number">3</div>
-                <div class="step-content">
-                    <h3>Track Your Spending</h3>
-                    <p>Quickly log expenses as you go. Get instant feedback on how you're doing versus your budget and campus averages.</p>
-                </div>
+                <h3>Log Your Spending</h3>
+                <p>Add expenses as you go. Elm tracks them by category and shows real-time spending against your budget.</p>
             </div>
             
             <div class="step">
                 <div class="step-number">4</div>
-                <div class="step-content">
-                    <h3>Grow Your Financial IQ</h3>
-                    <p>Watch your savings grow while building money management skills that will benefit you for years to come.</p>
-                </div>
+                <h3>Improve Your Habits</h3>
+                <p>See insights that help you spend smarter. Watch your savings grow while building lifelong financial skills.</p>
             </div>
         </div>
     </section>
@@ -625,11 +709,11 @@ $isLoggedIn = $auth->isLoggedIn();
     <section class="cta">
         <div class="cta-content">
             <h2>Ready to Take Control?</h2>
-            <p>Join hundreds of Ashesi students already managing their finances smarter with Elm.</p>
+            <p>Join hundreds of students managing their finances smarter with Elm.</p>
             <?php if ($isLoggedIn): ?>
                 <a href="dashboard.php" class="btn btn-primary">Go to Dashboard</a>
             <?php else: ?>
-                <a href="register.php" class="btn btn-primary">Create Your Free Account</a>
+                <a href="register.php" class="btn btn-primary">Create Your Account</a>
             <?php endif; ?>
         </div>
     </section>
@@ -638,54 +722,81 @@ $isLoggedIn = $auth->isLoggedIn();
     <footer class="footer" id="about">
         <div class="footer-content">
             <div class="footer-brand">
-                <h3>🌿 Elm Finance</h3>
-                <p>Smart financial management for the next generation of African leaders.</p>
+                <h3>Elm Finance</h3>
+                <p>Smart financial management for students who care about their money. We help you spend intentionally and build habits that matter.</p>
             </div>
             <div class="footer-links">
                 <div class="footer-column">
                     <h4>Product</h4>
                     <a href="#features">Features</a>
                     <a href="#how-it-works">How It Works</a>
-                    <a href="login.php">Login</a>
+                    <a href="login.php">Sign In</a>
                 </div>
                 <div class="footer-column">
                     <h4>Resources</h4>
                     <a href="#">Financial Tips</a>
                     <a href="#">Campus Guide</a>
-                    <a href="#">Support</a>
+                    <a href="#">Help & Support</a>
                 </div>
                 <div class="footer-column">
                     <h4>Company</h4>
                     <a href="#">About</a>
-                    <a href="#">Privacy</a>
-                    <a href="#">Terms</a>
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2024 Elm Finance. Made with 💚 for Ashesi University students.</p>
+            <p>&copy; 2024 Elm Finance. Helping students build better financial futures.</p>
         </div>
     </footer>
 
     <script>
-        // Smooth scrolling for navigation links
+        // ============ THEME TOGGLE ============
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        // Load saved theme from localStorage
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark-mode';
+            if (savedTheme === 'light-mode') {
+                html.classList.add('light-mode');
+                themeToggle.textContent = 'Dark';
+            } else {
+                html.classList.remove('light-mode');
+                themeToggle.textContent = 'Light';
+            }
+        }
+        
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', function() {
+            html.classList.toggle('light-mode');
+            const isLightMode = html.classList.contains('light-mode');
+            
+            // Update button text
+            themeToggle.textContent = isLightMode ? 'Dark' : 'Light';
+            
+            // Save preference to localStorage
+            localStorage.setItem('theme', isLightMode ? 'light-mode' : 'dark-mode');
+        });
+        
+        // Load theme on page load
+        loadTheme();
+        
+        // ============ SMOOTH SCROLLING ============
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
             });
         });
 
-        // Parallax effect for hero section
-        window.addEventListener('scroll', function() {
-            const scrolled = window.pageYOffset;
-            const hero = document.querySelector('.hero');
-            hero.style.backgroundPositionY = scrolled * 0.5 + 'px';
-        });
-
-        // Animation on scroll
+        // ============ SCROLL ANIMATIONS ============
         const observerOptions = {
             threshold: 0.1,
             rootMargin: '0px 0px -50px 0px'
@@ -700,7 +811,6 @@ $isLoggedIn = $auth->isLoggedIn();
             });
         }, observerOptions);
 
-        // Observe feature cards and steps
         document.querySelectorAll('.feature-card, .step').forEach(el => {
             el.style.opacity = '0';
             el.style.transform = 'translateY(20px)';
