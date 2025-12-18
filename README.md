@@ -1,4 +1,4 @@
-# 🌿 Elm Finance - Admin Management System
+# Elm Finance - Admin Management System
 
 A premium, secure financial oversight platform built for administrative control. Elm Finance features a state-of-the-art Glassmorphism UI, real-time analytics, and comprehensive user management.
 
@@ -51,7 +51,7 @@ ElmFinances/
     └── js/theme-manager.js # Theme & Persistance logic
 ```
 
-## ⚙️ Setup Instructions
+##  Setup Instructions
 
 1. **Environment**: Ensure XAMPP/WAMP (Apache & MySQL) is running.
 2. **Database**: Create `elm_finance` and import the schema.
