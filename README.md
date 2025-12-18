@@ -2,9 +2,9 @@
 
 A premium, secure financial oversight platform built for administrative control. Elm Finance features a state-of-the-art Glassmorphism UI, real-time analytics, and comprehensive user management.
 
-## 🎯 Core Features
+##  Core Features
 
-### 👑 Administrative Suite
+###  Administrative Suite
 - **Omniscient Dashboard**: View system-wide metrics, total user expenditures, and growth trends.
 - **User Lifecycle Management**: Monitor registrations, update user roles, and manage accounts with self-deletion protection.
 - **Unified Dashboard**: Personalized overview for both students and administrators.
@@ -13,19 +13,19 @@ A premium, secure financial oversight platform built for administrative control.
 - **Smart Analytics**: Real-time spending trends, daily averages, and budget tracking.
 - **Security Portal**: Centralized monitoring of session security and configuration status.
 
-### 🛡️ Security First
+###  Security First
 - **bcrypt Hashing**: Industry-standard password encryption.
 - **CSRF Defense**: Strict token validation on all administrative actions.
 - **Middleware Authorization**: Robust `requireAdmin()` gatekeeping.
 - **Session Protection**: IP & User-Agent binding with automatic hijacking detection.
 - **Rate Limiting**: Brute-force protection on all entry points.
 
-### 🎨 Design & UX
+###  Design & UX
 - **Glassmorphism UI**: High-end aesthetics with backdrop-filters and neon glow effects.
 - **Unified Theme Control**: Centralized dark/light mode persistence via `localStorage`.
 - **Responsive Navigation**: Optimized for both high-resolution monitors and mobile management.
 
-## 🚀 Tech Stack
+##  Tech Stack
 
 - **Backend**: PHP 7.4+ / 8.x
 - **Database**: MySQL / MariaDB (PDO for secure transactions)
@@ -33,7 +33,7 @@ A premium, secure financial oversight platform built for administrative control.
 - **Icons**: FontAwesome 6.4.0
 - **Typography**: Google Fonts (Poppins)
 
-## 📋 Project Structure
+##  Project Structure
 
 ```
 ElmFinances/
