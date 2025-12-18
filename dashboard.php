@@ -1,680 +1,320 @@
 <?php
+// dashboard.php - COMPLETELY FIXED VERSION
+session_start();
 require_once 'config/database.php';
-require_once 'includes/security.php';
 require_once 'includes/auth.php';
+require_once 'includes/functions.php';
 
-// Configure session security FIRST - THIS STARTS THE SESSION
-Security::configureSession();
+try {
+    $db = new Database();
+    $pdo = $db->getPDO();
+    $auth = new Auth($pdo);
+} catch (Exception $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
 
-// Check if user is logged in
-$auth = new Auth($pdo);
-$auth->requireAuth(); // This redirects to login if not authenticated
-
-// Get current user data
-$currentUser = $auth->getUser();
-
-// Debug: Check if user data is loaded
-if (!$currentUser || !isset($currentUser['id'])) {
-    error_log("User authentication failed - redirecting to login");
+if (!$auth->isLoggedIn()) {
     header('Location: login.php');
-    exit;
+    exit();
 }
 
-// Get current month and year for filtering
-$currentMonth = date('Y-m');
-
-// Get user's expenses for the current month
-try {
-    $stmt = $pdo->prepare("
-        SELECT category, SUM(amount) as total 
-        FROM elm_expenses 
-        WHERE user_id = ? AND DATE_FORMAT(expense_date, '%Y-%m') = ?
-        GROUP BY category
-    ");
-    $stmt->execute([$currentUser['id'], $currentMonth]);
-    $monthlyExpenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Convert to associative array for easy access
-    $expensesByCategory = [];
-    $totalSpent = 0;
-    foreach ($monthlyExpenses as $expense) {
-        $expensesByCategory[$expense['category']] = $expense['total'];
-        $totalSpent += $expense['total'];
-    }
-    
-} catch (Exception $e) {
-    error_log("Dashboard expense error: " . $e->getMessage());
-    $expensesByCategory = [];
-    $totalSpent = 0;
+$user = $auth->getCurrentUser();
+if (!$user) {
+    $auth->logout();
+    header('Location: login.php');
+    exit();
 }
 
-// Get recent transactions
-try {
-    $stmt = $pdo->prepare("
-        SELECT description, amount, category, expense_date 
-        FROM elm_expenses 
-        WHERE user_id = ? 
-        ORDER BY expense_date DESC, created_at DESC 
-        LIMIT 5
-    ");
-    $stmt->execute([$currentUser['id']]);
-    $recentTransactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-} catch (Exception $e) {
-    error_log("Dashboard transactions error: " . $e->getMessage());
-    $recentTransactions = [];
-}
+$userId = $user['id'];
+$userName = $user['username'];
+$userRole = $user['role'] ?? 'student';
+$userUniversity = $user['university'] ?? 'Student';
 
-// Get user's budgets
-try {
-    $stmt = $pdo->prepare("
-        SELECT category, amount 
-        FROM elm_budgets 
-        WHERE user_id = ? AND month_year = ?
-    ");
-    $stmt->execute([$currentUser['id'], $currentMonth . '-01']);
-    $userBudgets = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Convert to associative array
-    $budgetsByCategory = [];
-    $totalBudget = 0;
-    foreach ($userBudgets as $budget) {
-        $budgetsByCategory[$budget['category']] = $budget['amount'];
-        $totalBudget += $budget['amount'];
-    }
-    
-} catch (Exception $e) {
-    error_log("Dashboard budget error: " . $e->getMessage());
-    $budgetsByCategory = [];
-    $totalBudget = 0;
-}
+// Set active page for sidebar
+$activePage = 'dashboard';
 
-// Calculate remaining budget
-$remainingBudget = $totalBudget - $totalSpent;
-$daysInMonth = date('t');
-$currentDay = date('j');
-$monthProgress = ($currentDay / $daysInMonth) * 100;
+// Get today's expenses for badge
+$todayExpenses = getTodayExpenses($pdo, $userId);
 
-// Campus average data (from our reference table)
-$campusAverages = [
-    'food' => 220,
-    'transport' => 120, 
-    'essentials' => 200,
-    'entertainment' => 80,
-    'other' => 100
+// Get current month
+$currentMonth = date('Y-m-01');
+$yearMonth = date('F Y');
+
+// Get budget vs expense comparison
+$comparison = getBudgetExpenseComparison($pdo, $userId, $currentMonth);
+
+// Extract totals
+$monthlyBudget = $comparison['total_budget'];
+$monthlyExpenses = $comparison['total_spent'];
+$remainingBudget = $comparison['total_remaining'];
+$budgetPercentage = $comparison['total_percentage'];
+
+// Get daily average
+$daysPassed = date('j');
+$dailyAverage = $daysPassed > 0 ? $monthlyExpenses / $daysPassed : 0;
+$projectedSpend = $dailyAverage * 30;
+
+// Get recent expenses
+$recentStmt = $pdo->prepare("
+    SELECT * FROM elm_expenses 
+    WHERE user_id = ? 
+    ORDER BY expense_date DESC, id DESC 
+    LIMIT 5
+");
+$recentStmt->execute([$userId]);
+$recentExpenses = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get month-over-month change
+$prevMonth = date('Y-m-01', strtotime('-1 month'));
+$prevComparison = getBudgetExpenseComparison($pdo, $userId, $prevMonth);
+$prevMonthExpenses = $prevComparison['total_spent'];
+$momChange = $prevMonthExpenses > 0 ? 
+    (($monthlyExpenses - $prevMonthExpenses) / $prevMonthExpenses) * 100 : 0;
+
+// Category icons
+$categoryIcons = [
+    'food' => ['icon' => 'fas fa-utensils', 'color' => 'var(--success)'],
+    'transport' => ['icon' => 'fas fa-bus', 'color' => 'var(--info)'],
+    'essentials' => ['icon' => 'fas fa-shopping-basket', 'color' => 'var(--warning)'],
+    'entertainment' => ['icon' => 'fas fa-gamepad', 'color' => '#a855f7'],
+    'other' => ['icon' => 'fas fa-receipt', 'color' => 'var(--error)']
 ];
 
-// Calculate insights
-$insights = [];
-foreach ($expensesByCategory as $category => $spent) {
-    $campusAvg = $campusAverages[$category] ?? 0;
-    $difference = $campusAvg - $spent;
-    
-    if ($difference > 0) {
-        $insights[] = [
-            'category' => $category,
-            'message' => "You're spending ₵$difference less than campus average on " . $category,
-            'type' => 'positive'
-        ];
-    } elseif ($difference < 0) {
-        $insights[] = [
-            'category' => $category,
-            'message' => "You're spending ₵" . abs($difference) . " more than campus average on " . $category,
-            'type' => 'warning'
-        ];
-    }
-}
-
-// Add budget alerts
-foreach ($budgetsByCategory as $category => $budget) {
-    $spent = $expensesByCategory[$category] ?? 0;
-    $percentage = ($spent / $budget) * 100;
-    
-    if ($percentage >= 90) {
-        $insights[] = [
-            'category' => $category,
-            'message' => ucfirst($category) . " budget is " . round($percentage) . "% used",
-            'type' => 'alert'
-        ];
-    }
-}
+$pageTitle = 'Dashboard | Elm Finance';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Elm Finance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --neon-green: #00ff88;
-            --neon-cyan: #00ffff;
-            --neon-purple: #b967ff;
-            --dark-bg: #0a0a0a;
-            --darker-bg: #050505;
-            --card-bg: rgba(15, 15, 15, 0.8);
-            --card-border: rgba(0, 255, 136, 0.2);
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --success: #00ff88;
-            --warning: #ffb800;
-            --alert: #ff4444;
-            --gradient-1: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
-            --gradient-2: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan));
-        }
-        
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
-        }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: var(--darker-bg);
-            color: var(--text-primary);
-            min-height: 100vh;
-        }
-        
-        /* Navigation */
-        .navbar {
-            background: rgba(10, 10, 10, 0.9);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--card-border);
-            padding: 1rem 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: var(--text-primary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-        
-        .nav-links a:hover {
-            color: var(--neon-green);
-        }
-        
-        .user-welcome {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-        
-        /* Main Layout */
-        .dashboard {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-            display: grid;
-            gap: 2rem;
-        }
-        
-        /* Hero Section - Financial Snapshot */
-        .hero-section {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 2.5rem;
-            box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .hero-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
-            transition: left 0.6s ease;
-        }
-        
-        .hero-section:hover::before {
-            left: 100%;
-        }
-        
-        .welcome-message {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, #ffffff, var(--neon-cyan));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .financial-snapshot {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .snapshot-card {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 1.5rem;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .snapshot-value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .snapshot-value.positive {
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .snapshot-value.warning {
-            color: var(--warning);
-        }
-        
-        .snapshot-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-        
-        .month-progress {
-            margin-top: 1.5rem;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 0.5rem;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: var(--gradient-1);
-            border-radius: 4px;
-            transition: width 1s ease-in-out;
-        }
-        
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
-        
-        /* Categories Grid */
-        .categories-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .category-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .category-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 255, 136, 0.1);
-        }
-        
-        .category-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        
-        .category-icon {
-            font-size: 1.5rem;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .category-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        
-        .category-amount {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .category-budget {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-        
-        /* Recent Transactions */
-        .recent-transactions {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 1.5rem;
-        }
-        
-        .section-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .transaction-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        
-        .transaction-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .transaction-info {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .transaction-desc {
-            font-weight: 500;
-        }
-        
-        .transaction-category {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
-        
-        .transaction-amount {
-            font-weight: 600;
-        }
-        
-        .transaction-date {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
-        
-        /* Insights */
-        .insights-section {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 1.5rem;
-        }
-        
-        .insight-item {
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            border-radius: 12px;
-            border-left: 4px solid;
-        }
-        
-        .insight-item.positive {
-            background: rgba(0, 255, 136, 0.1);
-            border-left-color: var(--success);
-        }
-        
-        .insight-item.warning {
-            background: rgba(255, 184, 0, 0.1);
-            border-left-color: var(--warning);
-        }
-        
-        .insight-item.alert {
-            background: rgba(255, 68, 68, 0.1);
-            border-left-color: var(--alert);
-        }
-        
-        .insight-message {
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .dashboard {
-                padding: 1rem;
-                gap: 1rem;
-            }
-            
-            .hero-section {
-                padding: 1.5rem;
-            }
-            
-            .welcome-message {
-                font-size: 1.5rem;
-            }
-            
-            .financial-snapshot {
-                grid-template-columns: 1fr;
-            }
-            
-            .nav-links {
-                gap: 1rem;
-            }
-        }
-    </style>
+    <title><?php echo $pageTitle; ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="public/css/style.css">
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo">Elm</div>
-            <div class="nav-links">
-                <a href="dashboard.php" style="color: var(--neon-green);">Dashboard</a>
-                <a href="expenses.php">Expenses</a>
-                <a href="budget.php">Budget</a>
-                <a href="insights.php">Insights</a>
-                <a href="profile.php">Profile</a>
-                <span class="user-welcome">Hi, <?php echo htmlspecialchars($currentUser['first_name'] ?? $currentUser['username']); ?></span>
-                <a href="logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Dashboard -->
-    <div class="dashboard">
-        <!-- Hero Section -->
-        <section class="hero-section">
-            <h1 class="welcome-message">Welcome back, <?php echo htmlspecialchars($currentUser['first_name'] ?? $currentUser['username']); ?>! 👋</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Here's your financial overview for <?php echo date('F Y'); ?></p>
-            
-            <!-- Authentication Status Bar -->
-            <div style="background: rgba(0, 255, 136, 0.1); border: 1px solid rgba(0, 255, 136, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-                <div style="color: var(--text-secondary); font-size: 0.9rem;">
-                    <span style="color: #00ff88; font-weight: 600;">✓ Authenticated</span> as 
-                    <strong><?php echo htmlspecialchars($currentUser['email']); ?></strong>
-                    <?php if ($currentUser['last_login']): ?>
-                        | Last login: <?php echo date('M d, Y H:i', strtotime($currentUser['last_login'])); ?>
-                    <?php endif; ?>
+    <!-- Include Universal Sidebar -->
+    <?php include 'includes/sidebar.php'; ?>
+    
+    <!-- Main -->
+    <div class="main-content" id="mainContent">
+        <div class="container">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <h1 class="page-title">Dashboard Overview</h1>
+                <div class="top-actions">
+                    <button class="theme-toggle" id="themeToggle">
+                        <span id="themeIcon">🌙</span>
+                    </button>
                 </div>
-                <div style="font-size: 0.8rem; color: #888;">Session ID: <?php echo substr(session_id(), 0, 8); ?>...</div>
             </div>
             
-            <!-- Financial Snapshot -->
-            <div class="financial-snapshot">
-                <div class="snapshot-card">
-                    <div class="snapshot-value">₵<?php echo number_format($totalBudget, 2); ?></div>
-                    <div class="snapshot-label">Monthly Budget</div>
-                </div>
-                <div class="snapshot-card">
-                    <div class="snapshot-value">₵<?php echo number_format($totalSpent, 2); ?></div>
-                    <div class="snapshot-label">Total Spent</div>
-                </div>
-                <div class="snapshot-card">
-                    <div class="snapshot-value <?php echo $remainingBudget >= 0 ? 'positive' : 'warning'; ?>">
-                        ₵<?php echo number_format($remainingBudget, 2); ?>
+            <!-- Welcome Banner -->
+            <div class="welcome-banner fade-in-up">
+                <h2>Welcome, <?php echo htmlspecialchars($userName); ?>!</h2>
+                <p>Here's your financial overview for <?php echo $yearMonth; ?></p>
+                <div class="welcome-stats">
+                    <div class="welcome-stat">
+                        <div class="welcome-stat-label">University</div>
+                        <div class="welcome-stat-value"><?php echo htmlspecialchars($userUniversity); ?></div>
                     </div>
-                    <div class="snapshot-label">Remaining</div>
+                    <div class="welcome-stat">
+                        <div class="welcome-stat-label">Role</div>
+                        <div class="welcome-stat-value"><?php echo ucfirst($userRole); ?></div>
+                    </div>
+                    <div class="welcome-stat">
+                        <div class="welcome-stat-label">Member Since</div>
+                        <div class="welcome-stat-value"><?php echo date('M Y', strtotime($user['created_at'] ?? 'now')); ?></div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Month Progress -->
-            <div class="month-progress">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: <?php echo min($monthProgress, 100); ?>%;"></div>
+            <!-- Stats -->
+            <div class="dashboard-stats-grid">
+                <!-- Monthly Budget -->
+                <div class="stat-card-highlight fade-in-up">
+                    <div class="stat-title-large">Monthly Budget</div>
+                    <div class="stat-value-large">GHS <?php echo number_format($monthlyBudget, 2); ?></div>
+                    <div class="stat-change-large">
+                        <i class="fas fa-wallet"></i>
+                        <span>Your total spending limit</span>
+                    </div>
                 </div>
-                <div class="progress-text">
-                    <span>Month Progress</span>
-                    <span><?php echo round($monthProgress); ?>% (Day <?php echo $currentDay; ?> of <?php echo $daysInMonth; ?>)</span>
+                
+                <!-- Spent This Month -->
+                <div class="stat-card-highlight fade-in-up delay-1">
+                    <div class="stat-title-large">Spent This Month</div>
+                    <div class="stat-value-large" style="color: var(--error);">GHS <?php echo number_format($monthlyExpenses, 2); ?></div>
+                    <div class="stat-change-large">
+                        <?php if ($momChange > 0): ?>
+                            <i class="fas fa-arrow-up" style="color: var(--error);"></i>
+                            <span style="color: var(--error);">+<?php echo round($momChange, 1); ?>% vs last month</span>
+                        <?php else: ?>
+                            <i class="fas fa-arrow-down" style="color: var(--success);"></i>
+                            <span style="color: var(--success);"><?php echo round($momChange, 1); ?>% vs last month</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- Remaining Budget -->
+                <div class="stat-card-highlight fade-in-up delay-2">
+                    <div class="stat-title-large">Remaining Budget</div>
+                    <div class="stat-value-large" style="color: <?php echo $remainingBudget >= 0 ? 'var(--success)' : 'var(--error)'; ?>;">
+                        GHS <?php echo number_format($remainingBudget, 2); ?>
+                    </div>
+                    <div class="stat-change-large">
+                        <i class="fas fa-chart-line"></i>
+                        <span>
+                            <?php if ($remainingBudget >= 0): ?>
+                                <span style="color: var(--success);">✅ On track</span>
+                            <?php else: ?>
+                                <span style="color: var(--error);">⚠️ Over budget</span>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div style="margin-top: 1.5rem;">
+                        <div class="progress-container">
+                            <div class="progress-fill" style="width: <?php echo min($budgetPercentage, 100); ?>%; background: var(--gradient-primary);"></div>
+                        </div>
+                        <span style="margin-left: 1rem; font-size: 1.4rem; color: var(--text-secondary);">
+                            <?php echo round($budgetPercentage, 1); ?>% used
+                        </span>
+                    </div>
                 </div>
             </div>
-        </section>
-
-        <!-- Main Content Grid -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-            <!-- Left Column -->
-            <div style="display: flex; flex-direction: column; gap: 2rem;">
-                <!-- Categories Overview -->
-                <section class="categories-grid">
-                    <?php
-                    $categories = [
-                        'food' => ['icon' => '🍔', 'name' => 'Food & Dining'],
-                        'transport' => ['icon' => '🚗', 'name' => 'Transport'],
-                        'essentials' => ['icon' => '🛍️', 'name' => 'Essentials'],
-                        'entertainment' => ['icon' => '🎬', 'name' => 'Entertainment'],
-                        'other' => ['icon' => '📦', 'name' => 'Other']
-                    ];
-                    
-                    foreach ($categories as $categoryKey => $categoryInfo): 
-                        $spent = $expensesByCategory[$categoryKey] ?? 0;
-                        $budget = $budgetsByCategory[$categoryKey] ?? 0;
-                        $percentage = $budget > 0 ? ($spent / $budget) * 100 : 0;
+            
+            <!-- Budget vs Expenses -->
+            <div class="budget-table-container fade-in-up">
+                <div class="section-header-large">
+                    <h2 class="section-title-large">
+                        <i class="fas fa-chart-bar"></i> Budget vs Expenses
+                    </h2>
+                    <a href="budgets.php" class="btn btn-secondary">
+                        <i class="fas fa-edit"></i> Manage Budgets
+                    </a>
+                </div>
+                
+                <?php if (!empty($comparison['categories'])): ?>
+                <div class="table-container">
+                    <table class="budget-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th style="text-align: right;">Budget</th>
+                                <th style="text-align: right;">Spent</th>
+                                <th style="text-align: right;">Remaining</th>
+                                <th style="text-align: center;">Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($comparison['categories'] as $category => $data): 
+                                $icon = $categoryIcons[$category] ?? $categoryIcons['other'];
+                                $progressColor = $data['percentage'] >= 100 ? 'var(--error)' : 
+                                               ($data['percentage'] >= 80 ? 'var(--warning)' : 'var(--success)');
+                            ?>
+                            <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center;">
+                                        <div class="category-icon-large" style="background: <?php echo str_replace('var(--', 'rgba(', $icon['color']); ?>0.1); color: <?php echo $icon['color']; ?>;">
+                                            <i class="<?php echo $icon['icon']; ?>"></i>
+                                        </div>
+                                        <span style="font-size: 1.6rem; font-weight: 500;"><?php echo ucfirst($category); ?></span>
+                                    </div>
+                                </td>
+                                <td style="text-align: right; font-weight: 600; font-size: 1.6rem;">
+                                    GHS <?php echo number_format($data['budget'], 2); ?>
+                                </td>
+                                <td style="text-align: right; font-weight: 600; color: var(--error); font-size: 1.6rem;">
+                                    GHS <?php echo number_format($data['spent'], 2); ?>
+                                </td>
+                                <td style="text-align: right; font-weight: 600; color: <?php echo $data['remaining'] >= 0 ? 'var(--success)' : 'var(--error)'; ?>; font-size: 1.6rem;">
+                                    GHS <?php echo number_format($data['remaining'], 2); ?>
+                                </td>
+                                <td style="text-align: center;">
+                                    <div style="display: flex; align-items: center; gap: 1rem; justify-content: center;">
+                                        <div class="progress-container">
+                                            <div class="progress-fill" style="width: <?php echo min($data['percentage'], 100); ?>%; background: <?php echo $progressColor; ?>;"></div>
+                                        </div>
+                                        <span style="font-size: 1.4rem; font-weight: 600; color: <?php echo $progressColor; ?>;">
+                                            <?php echo round($data['percentage'], 1); ?>%
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="empty-state-large">
+                    <div class="empty-icon-large">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h3 class="empty-title-large">No Budgets Set Yet</h3>
+                    <p class="empty-desc-large">Set your first budget to start tracking your spending</p>
+                    <a href="budgets.php" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create First Budget
+                    </a>
+                </div>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Transactions -->
+            <div class="recent-transactions-container fade-in-up">
+                <div class="section-header-large">
+                    <h2 class="section-title-large">
+                        <i class="fas fa-history"></i> Recent Transactions
+                    </h2>
+                    <a href="transactions.php" class="btn btn-secondary">
+                        <i class="fas fa-list"></i> View All
+                    </a>
+                </div>
+                
+                <?php if (!empty($recentExpenses)): ?>
+                <div class="transaction-list-large">
+                    <?php foreach ($recentExpenses as $expense): 
+                        $icon = $categoryIcons[$expense['category']] ?? $categoryIcons['other'];
                     ?>
-                    <div class="category-card">
-                        <div class="category-header">
-                            <span class="category-icon"><?php echo $categoryInfo['icon']; ?></span>
-                            <span class="category-name"><?php echo $categoryInfo['name']; ?></span>
+                    <div class="transaction-item-large">
+                        <div class="transaction-category-large" style="background: <?php echo str_replace('var(--', 'rgba(', $icon['color']); ?>0.1); color: <?php echo $icon['color']; ?>;">
+                            <i class="<?php echo $icon['icon']; ?>"></i>
                         </div>
-                        <div class="category-amount">₵<?php echo number_format($spent, 2); ?></div>
-                        <div class="category-budget">
-                            Budget: ₵<?php echo number_format($budget, 2); ?> 
-                            <?php if ($budget > 0): ?>
-                                • <?php echo round($percentage); ?>% used
-                            <?php endif; ?>
+                        <div style="flex: 1;">
+                            <div class="transaction-title-large"><?php echo ucfirst($expense['category']); ?></div>
+                            <div class="transaction-description-large">
+                                <?php echo htmlspecialchars($expense['description'] ?: 'No description'); ?>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="transaction-amount-large" style="color: var(--error);">
+                                - GHS <?php echo number_format($expense['amount'], 2); ?>
+                            </div>
+                            <div class="transaction-date-large">
+                                <?php echo date('M d, Y', strtotime($expense['expense_date'])); ?>
+                            </div>
                         </div>
                     </div>
                     <?php endforeach; ?>
-                </section>
-
-                <!-- Recent Transactions -->
-                <section class="recent-transactions">
-                    <h2 class="section-title">Recent Transactions</h2>
-                    <div class="transaction-list">
-                        <?php if (empty($recentTransactions)): ?>
-                            <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                                No transactions yet. <a href="expenses.php" style="color: var(--neon-green);">Add your first expense</a>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($recentTransactions as $transaction): ?>
-                            <div class="transaction-item">
-                                <div class="transaction-info">
-                                    <div class="transaction-desc"><?php echo htmlspecialchars($transaction['description']); ?></div>
-                                    <div class="transaction-category"><?php echo ucfirst($transaction['category']); ?></div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div class="transaction-amount">₵<?php echo number_format($transaction['amount'], 2); ?></div>
-                                    <div class="transaction-date"><?php echo date('M j', strtotime($transaction['expense_date'])); ?></div>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                </div>
+                <?php else: ?>
+                <div class="empty-state-large">
+                    <div class="empty-icon-large">
+                        <i class="fas fa-exchange-alt"></i>
                     </div>
-                </section>
-            </div>
-
-            <!-- Right Column -->
-            <div style="display: flex; flex-direction: column; gap: 2rem;">
-                <!-- Financial Insights -->
-                <section class="insights-section">
-                    <h2 class="section-title">Financial Insights</h2>
-                    <div class="insight-list">
-                        <?php if (empty($insights)): ?>
-                            <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">
-                                No insights yet. Keep tracking your expenses!
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($insights as $insight): ?>
-                            <div class="insight-item <?php echo $insight['type']; ?>">
-                                <div class="insight-message"><?php echo htmlspecialchars($insight['message']); ?></div>
-                            </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </section>
-
-                <!-- Quick Actions -->
-                <section class="recent-transactions">
-                    <h2 class="section-title">Quick Actions</h2>
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        <a href="expenses.php" style="display: block; padding: 1rem; background: rgba(0, 255, 136, 0.1); border: 1px solid var(--neon-green); border-radius: 12px; text-decoration: none; color: var(--neon-green); text-align: center; font-weight: 500; transition: all 0.3s ease;">
-                            ➕ Add Expense
-                        </a>
-                        <a href="budget.php" style="display: block; padding: 1rem; background: rgba(0, 255, 255, 0.1); border: 1px solid var(--neon-cyan); border-radius: 12px; text-decoration: none; color: var(--neon-cyan); text-align: center; font-weight: 500; transition: all 0.3s ease;">
-                            💰 Set Budget
-                        </a>
-                    </div>
-                </section>
+                    <h3 class="empty-title-large">No Transactions Yet</h3>
+                    <p class="empty-desc-large">Start tracking your expenses to see insights</p>
+                    <a href="expenses.php" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add First Expense
+                    </a>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-
-    <script>
-        // Add any interactive JavaScript here if needed
-        console.log('Dashboard loaded successfully');
-    </script>
+    
+    <!-- JS -->
+    <script src="public/js/theme-manager.js"></script>
+    
 </body>
 </html>

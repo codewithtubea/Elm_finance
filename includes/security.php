@@ -1,6 +1,26 @@
 <?php
+// includes/security.php
 class Security {
-    // Rate limiting
+    
+    // Configure Session
+    public static function configureSession() {
+        // Only configure if session hasn't been started
+        if (session_status() === PHP_SESSION_NONE) {
+            // Session security settings - MUST be set BEFORE session_start()
+            ini_set('session.use_only_cookies', 1);
+            ini_set('session.cookie_httponly', 1);
+            ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
+            ini_set('session.cookie_samesite', 'Lax'); // Changed from Strict to Lax for better AJAX compatibility
+            ini_set('session.use_strict_mode', 1);
+            ini_set('session.cookie_path', '/'); // Ensure cookie is accessible from all paths
+            ini_set('session.cookie_domain', ''); // Use default domain (empty = current domain)
+            
+            // Start session - PHP will automatically set the cookie with the above parameters
+            session_start();
+        }
+    }
+    
+    // Rate limit
     public static function checkRateLimit($identifier, $maxAttempts = 5, $timeWindow = 900) {
         $key = "rate_limit_{$identifier}";
         
@@ -32,21 +52,35 @@ class Security {
         return true;
     }
     
-    // Session security - CALL THIS BEFORE session_start()
-    public static function configureSession() {
-        ini_set('session.cookie_httponly', 1);
-        ini_set('session.cookie_secure', 1); // Only if using HTTPS
-        ini_set('session.use_strict_mode', 1);
-    }
-    
-    // Regenerate session ID - CALL THIS AFTER session_start()
+    // Regenerate
     public static function regenerateSession() {
         session_regenerate_id(true);
     }
     
-    // Generate secure tokens
+    // Tokens
     public static function generateToken($length = 32) {
         return bin2hex(random_bytes($length));
+    }
+    
+    // CSRF
+    public static function validateCSRF($token) {
+        return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+    }
+    
+    // Create CSRF token
+    public static function createCSRFToken() {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = self::generateToken(32);
+        }
+        return $_SESSION['csrf_token'];
+    }
+    
+    // Sanitize
+    public static function sanitizeOutput($data) {
+        if (is_array($data)) {
+            return array_map([self::class, 'sanitizeOutput'], $data);
+        }
+        return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
     }
 }
 
@@ -80,6 +114,20 @@ class Validator {
             return array_map([self::class, 'sanitizeInput'], $input);
         }
         return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+    }
+    
+    // Additional validation methods
+    public static function validateName($name) {
+        return preg_match('/^[a-zA-Z\s\-]{1,50}$/', $name);
+    }
+    
+    public static function validateAmount($amount) {
+        return is_numeric($amount) && $amount > 0;
+    }
+    
+    public static function validateDate($date) {
+        $d = DateTime::createFromFormat('Y-m-d', $date);
+        return $d && $d->format('Y-m-d') === $date;
     }
 }
 ?>

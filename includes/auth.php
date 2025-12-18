@@ -1,14 +1,17 @@
 <?php
+require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/../config/database.php';
+
 class Auth {
     private $db;
-    private $maxLoginAttempts = 5;
-    private $lockoutTime = 900; // 15 minutes
+    private $maxLoginAttempts = 8;
+    private $lockoutTime = 300; // 5 minutes
     
     public function __construct($database) {
         $this->db = $database;
     }
     
-    // ==================== REGISTRATION ====================
+    // Registration
     public function register($userData) {
         // Validate input
         $errors = $this->validateRegistration($userData);
@@ -33,16 +36,15 @@ class Auth {
             
             // Create user
             $hashed_password = password_hash($userData['password'], PASSWORD_DEFAULT);
-            $verification_token = Security::generateToken();
             
-            $stmt = $this->db->prepare("INSERT INTO elm_users (username, email, password_hash, first_name, last_name, verification_token, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $this->db->prepare("INSERT INTO elm_users (username, email, password_hash, first_name, last_name, university, role, is_verified) VALUES (?, ?, ?, ?, ?, ?, 'student', ?)");
             $stmt->execute([
                 $userData['username'],
                 $userData['email'],
                 $hashed_password,
-                $userData['first_name'],
-                $userData['last_name'],
-                $verification_token,
+                $userData['first_name'] ?? '',
+                $userData['last_name'] ?? '',
+                $userData['university'] ?? 'Ashesi University',
                 1 // Auto-verify for development
             ]);
             
@@ -54,46 +56,64 @@ class Auth {
         }
     }
     
-
+    // Login
     public function login($username, $password, $remember = false) {
-        // Rate limiting check
-        $ip = $_SERVER['REMOTE_ADDR'];
-        if (!Security::checkRateLimit("login_$ip", $this->maxLoginAttempts, $this->lockoutTime)) {
-            $remainingTime = $this->lockoutTime - (time() - $_SESSION["rate_limit_login_$ip"]['first_attempt']);
-            $minutes = ceil($remainingTime / 60);
-            return ['success' => false, 'error' => "Too many login attempts. Try again in $minutes minutes."];
-        }
-        
         try {
-            $stmt = $this->db->prepare("SELECT id, username, email, password_hash, is_active, is_verified FROM elm_users WHERE username = ? OR email = ?");
+            // Find user - INCLUDING ROLE
+            $stmt = $this->db->prepare("SELECT id, username, email, password_hash, role FROM elm_users WHERE username = ? OR email = ?");
             $stmt->execute([$username, $username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
-             if ($user && password_verify($password, $user['password_hash'])) {
-                 if (!$user['is_verified']) {
-                     return ['success' => false, 'error' => 'Please verify your email before logging in.'];
-                 }
-                
-                if (!$user['is_active']) {
-                    return ['success' => false, 'error' => 'Account deactivated. Contact support.'];
-                }
-                
-                // Successful login - reset rate limiting
-                unset($_SESSION["rate_limit_login_$ip"]);
-                
-                // Create session
-                $this->createUserSession($user);
-                
-                // Set longer session if "remember me" is checked
-                if ($remember) {
-                    // Set cookie to expire in 7 days
-                    setcookie(session_name(), session_id(), time() + 604800, "/");
-                }
-                
-                return ['success' => true, 'user' => $user];
+            if (!$user) {
+                return ['success' => false, 'error' => 'Invalid username or password'];
             }
             
-            return ['success' => false, 'error' => 'Invalid username or password'];
+            // Verify password
+            if (!password_verify($password, $user['password_hash'])) {
+                return ['success' => false, 'error' => 'Invalid username or password'];
+            }
+            
+            // Create session with role
+            if (class_exists('Security')) {
+                Security::configureSession();
+            }
+            
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['logged_in'] = true;
+            $_SESSION['login_time'] = time();
+            $_SESSION['user_role'] = $user['role']; // Store role in session
+            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
+            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
+            
+            // Regenerate session ID for security
+            session_regenerate_id(true);
+            
+            // Set session cookie with root path
+            $params = session_get_cookie_params();
+            $cookieLifetime = $remember ? time() + 604800 : 0;
+            
+            setcookie(
+                session_name(),
+                session_id(),
+                $cookieLifetime,
+                '/', // Root path - important!
+                $params["domain"] ?? '',
+                $params["secure"] ?? false,
+                $params["httponly"] ?? true
+            );
+            
+            // Also set in $_COOKIE for immediate access
+            $_COOKIE[session_name()] = session_id();
+            
+            // Update last login
+            $this->updateLastLogin($user['id']);
+            
+            return [
+                'success' => true, 
+                'user' => $user,
+                'role' => $user['role'] ?? 'student',
+                'message' => 'Login successful'
+            ];
             
         } catch (Exception $e) {
             error_log("Login error: " . $e->getMessage());
@@ -101,45 +121,73 @@ class Auth {
         }
     }
     
-    // ==================== SESSION MANAGEMENT ====================
-    private function createUserSession($user) {
-    // Ensure session is properly configured
-    Security::configureSession();
+    // Current User
+    public function getCurrentUser() {
+        // Check if user is logged in
+        if (!$this->isLoggedIn()) {
+            return null;
+        }
+        
+        // Get user ID from session
+        $userId = $_SESSION['user_id'] ?? null;
+        
+        if (!$userId) {
+            return null;
+        }
+        
+        try {
+            // Fetch user from database WITH ROLE
+            $stmt = $this->db->prepare("SELECT * FROM elm_users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $user ?: null;
+        } catch (Exception $e) {
+            error_log("Error fetching current user: " . $e->getMessage());
+            return null;
+        }
+    }
     
-    Security::regenerateSession();
-    
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['username'] = $user['username'];
-    $_SESSION['email'] = $user['email'];
-    $_SESSION['logged_in'] = true;
-    $_SESSION['login_time'] = time();
-    $_SESSION['session_id'] = session_id();
-    $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
-    $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
-    
-    // Update last login
-    $stmt = $this->db->prepare("UPDATE elm_users SET last_login = NOW() WHERE id = ?");
-    $stmt->execute([$user['id']]);
-}
+    // Session Management
+    private function updateLastLogin($userId) {
+        try {
+            $stmt = $this->db->prepare("UPDATE elm_users SET last_login = NOW() WHERE id = ?");
+            $stmt->execute([$userId]);
+        } catch (Exception $e) {
+            error_log("Update last login error: " . $e->getMessage());
+        }
+    }
     
     public function isLoggedIn() {
+        // Check if user is logged in - only check essential session variables
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+            error_log("isLoggedIn: logged_in not set or false");
             return false;
         }
         
-        // Check session hijacking
-        if ($_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
-            $this->logout();
+        // Check if user_id exists (required)
+        if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+            error_log("isLoggedIn: user_id not set. Session: " . print_r($_SESSION, true));
             return false;
         }
         
-        if ($_SESSION['user_agent'] !== $_SERVER['HTTP_USER_AGENT']) {
-            $this->logout();
+        // Verify user still exists in database (security check)
+        try {
+            $stmt = $this->db->prepare("SELECT id FROM elm_users WHERE id = ?");
+            $stmt->execute([$_SESSION['user_id']]);
+            if (!$stmt->fetch()) {
+                error_log("isLoggedIn: User ID " . $_SESSION['user_id'] . " not found in database");
+                $this->logout();
+                return false;
+            }
+        } catch (Exception $e) {
+            error_log("isLoggedIn: Database check failed - " . $e->getMessage());
             return false;
         }
         
         // Check session timeout (8 hours)
-        if (time() - $_SESSION['login_time'] > 28800) {
+        if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time'] > 28800)) {
+            error_log("Session timeout");
             $this->logout();
             return false;
         }
@@ -156,7 +204,7 @@ class Auth {
             $params = session_get_cookie_params();
             setcookie(session_name(), '', time() - 42000,
                 $params["path"], $params["domain"],
-                $params["secure"], $params["httponly"]
+                $params["secure"] ?? false, $params["httponly"]
             );
         }
         
@@ -173,12 +221,19 @@ class Auth {
     
     public function requireGuest() {
         if ($this->isLoggedIn()) {
-            header('Location: dashboard.php');
+            $user = $this->getCurrentUser();
+            $role = $user['role'] ?? 'student';
+            
+            if ($role === 'admin') {
+                header('Location: admin.php');
+            } else {
+                header('Location: dashboard.php');
+            }
             exit;
         }
     }
     
-    // ==================== USER MANAGEMENT ====================
+    // User Management
     public function getUser($user_id = null) {
         if ($user_id === null) {
             $user_id = $_SESSION['user_id'] ?? null;
@@ -189,7 +244,8 @@ class Auth {
         }
         
         try {
-            $stmt = $this->db->prepare("SELECT id, username, email, first_name, last_name, university, created_at, last_login FROM elm_users WHERE id = ?");
+            // Fetch user WITH ROLE
+            $stmt = $this->db->prepare("SELECT id, username, email, first_name, last_name, university, role, created_at, last_login FROM elm_users WHERE id = ?");
             $stmt->execute([$user_id]);
             return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (Exception $e) {
@@ -197,7 +253,53 @@ class Auth {
             return null;
         }
     }
+
+    // ==================== GET USER BY ID (alias for getUser) ====================
+    public function getUserById($userId) {
+        return $this->getUser($userId);
+    }
     
+    // Role Methods
+    public function getRole($user_id = null) {
+        if ($user_id === null) {
+            $user_id = $_SESSION['user_id'] ?? null;
+        }
+        
+        if (!$user_id) {
+            return 'student'; // Default role
+        }
+        
+        try {
+            $stmt = $this->db->prepare("SELECT role FROM elm_users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $result['role'] ?? 'student';
+        } catch (Exception $e) {
+            error_log("Get role error: " . $e->getMessage());
+            return 'student';
+        }
+    }
+    
+    public function isAdmin($user_id = null) {
+        $role = $this->getRole($user_id);
+        return $role === 'admin';
+    }
+    
+    public function requireAdmin() {
+        if (!$this->isLoggedIn()) {
+            header('Location: login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
+            exit;
+        }
+        
+        if (!$this->isAdmin()) {
+            // Show access denied page or redirect to dashboard
+            header('Location: dashboard.php?error=access_denied');
+            exit;
+        }
+    }
+    
+    // Profile
     public function updateProfile($userData) {
         if (!$this->isLoggedIn()) {
             return ['success' => false, 'error' => 'Not logged in'];
@@ -266,7 +368,7 @@ class Auth {
         }
     }
     
-    // ==================== VALIDATION METHODS ====================
+    // Validation
     private function validateRegistration($userData) {
         $errors = [];
         
@@ -275,7 +377,7 @@ class Auth {
         }
         
         if (!Validator::validateEmail($userData['email'])) {
-            $errors[] = 'Valid Ashesi email required (@ashesi.edu.gh)';
+            $errors[] = 'Valid Ashesi email (@ashesi.edu.gh) required';
         }
         
         if (!Validator::validatePassword($userData['password'])) {
@@ -301,7 +403,7 @@ class Auth {
         }
         
         if (!empty($userData['email']) && !Validator::validateEmail($userData['email'])) {
-            $errors[] = 'Valid Ashesi email required (@ashesi.edu.gh)';
+            $errors[] = 'Valid Ashesi email (@ashesi.edu.gh) required';
         }
         
         if (!empty($userData['first_name']) && !preg_match('/^[a-zA-Z\s\-]{1,50}$/', $userData['first_name'])) {
@@ -315,20 +417,7 @@ class Auth {
         return $errors;
     }
     
-    // ==================== SECURITY METHODS ====================
-    public function verifyEmail($token) {
-        try {
-            $stmt = $this->db->prepare("UPDATE elm_users SET is_verified = 1, verification_token = NULL WHERE verification_token = ?");
-            $stmt->execute([$token]);
-            
-            return $stmt->rowCount() > 0;
-            
-        } catch (Exception $e) {
-            error_log("Email verification error: " . $e->getMessage());
-            return false;
-        }
-    }
-    
+    // Security
     public function deactivateAccount($password) {
         if (!$this->isLoggedIn()) {
             return ['success' => false, 'error' => 'Not logged in'];
@@ -358,7 +447,7 @@ class Auth {
         }
     }
     
-    // ==================== UTILITY METHODS ====================
+    // Utilities
     public function getLoginAttempts($identifier) {
         $key = "rate_limit_login_$identifier";
         return $_SESSION[$key]['attempts'] ?? 0;

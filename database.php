@@ -1,8 +1,8 @@
 <?php
 class DatabaseConfig {
 
-    const DB_HOST = '169.239.251.102';
-    const DB_NAME = 'webtech_2025A_princess_agyemfra';  
+    const DB_HOST = 'localhost';
+    const DB_NAME = 'elm_finance_local';  
     const DB_USER = 'princess.agyemfra';              
     const DB_PASS = 'Tracytubea2565';                   
     const DB_CHARSET = 'utf8mb4';
