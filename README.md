@@ -1,65 +1,56 @@
-# Elm Finance - Admin Management System
+#  Elm Finance - Personal & Administrative Financial Management
 
-A premium, secure financial oversight platform built for administrative control. Elm Finance features a state-of-the-art Glassmorphism UI, real-time analytics, and comprehensive user management.
+Elm Finance is a premium, all-in-one financial management platform designed specifically for university students. It combines powerful personal budgeting tools with a robust administrative oversight suite, all wrapped in a state-of-the-art Glassmorphism interface.
 
-##  Core Features
+##  Dual-Role Capabilities
 
-###  Administrative Suite
-- **Omniscient Dashboard**: View system-wide metrics, total user expenditures, and growth trends.
-- **User Lifecycle Management**: Monitor registrations, update user roles, and manage accounts with self-deletion protection.
-- **Unified Dashboard**: Personalized overview for both students and administrators.
-- **Dual-Level Reporting**: Role-aware reporting system (System-Wide for Admins, Personal for Students).
-- **Premium PDF Export**: High-quality "View then Print" reports with custom branding.
-- **Smart Analytics**: Real-time spending trends, daily averages, and budget tracking.
-- **Security Portal**: Centralized monitoring of session security and configuration status.
+###  For Students (Empowered Personal Finance)
+- **Interactive Dashboard**: Real-time overview of current month spending vs. budget.
+- **Smart Budgeting**: Set and track category-specific limits (Food, Transport, Essentials, etc.).
+- **Transaction Tracking**: Easy entry and management of daily expenses with instant categorization.
+- **Goal Setting**: Plan for future expenses with a dedicated financial goals module.
+- **Analytics & Reports**: Visual breakdown of spending habits and personalized monthly summaries.
 
-###  Security First
-- **bcrypt Hashing**: Industry-standard password encryption.
-- **CSRF Defense**: Strict token validation on all administrative actions.
-- **Middleware Authorization**: Robust `requireAdmin()` gatekeeping.
-- **Session Protection**: IP & User-Agent binding with automatic hijacking detection.
-- **Rate Limiting**: Brute-force protection on all entry points.
+###  For Administrators (System Oversight)
+- **Omniscient Dashboard**: Monitor system-wide financial health and growth trends.
+- **User Management**: Complete control over user lifecycles, role assignments, and account verification.
+- **Audit Reports**: Generate and export high-quality "System Wide" or "Student Detail" PDF/CSV reports.
+- **Security Portal**: Centralized monitoring of active sessions and system security health.
+- Admin details : username : ohene , Password: ohene1234$ ( to access admin functionalities)
 
-###  Design & UX
-- **Glassmorphism UI**: High-end aesthetics with backdrop-filters and neon glow effects.
-- **Unified Theme Control**: Centralized dark/light mode persistence via `localStorage`.
-- **Responsive Navigation**: Optimized for both high-resolution monitors and mobile management.
+## Security Framework
+- **Identity Protection**: Session IP/User-Agent binding & `bcrypt` password hashing.
+- **Anti-Exploit**: Comprehensive CSRF tokens, rate limiting, and SQL injection prevention via PDO.
+- **Access Control**: Role-based middleware ensuring strict data isolation.
 
 ##  Tech Stack
-
 - **Backend**: PHP 7.4+ / 8.x
-- **Database**: MySQL / MariaDB (PDO for secure transactions)
-- **Frontend**: Vanilla HTML5, CSS3 (Advanced Variables & Gradients), Modern JavaScript (ES6+)
-- **Icons**: FontAwesome 6.4.0
-- **Typography**: Google Fonts (Poppins)
+- **Database**: MySQL / MariaDB (Normalized Schema)
+- **Frontend**: Vanilla HTML5, CSS3 (Custom Design System), JavaScript (ES6)
+- **Design Essentials**: FontAwesome 6, Google Fonts (Poppins), Glassmorphism UI patterns.
 
-##  Project Structure
-
+##  Project Hierarchy
 ```
 ElmFinances/
-├── admin.php            # Master Dashboard
-├── adminusers.php       # User Management portal
-├── adminreports.php      # Reporting & Export system
-├── adminsecurity.php     # Security Monitoring portal
+├── config/              # Database & System Configuration
+├── includes/            # Core Auth, Security, & Functional logic
+├── database/            # SQL Schema & Persistence scripts
+├── public/              # Global CSS & Theme assets
+├── admin.php            # Administrative Master Dashboard
+├── dashboard.php        # Student Financial Overview
+├── expenses.php         # Transaction management
+├── budgets.php          # Budgeting module
+├── goals.php            # Financial goal tracking
+├── analytics.php        # Visual data summaries
+├── reports.php          # Student/Admin report generator
 ├── login.php            # Secure Entry Point
-├── profile.php          # Admin Profile management
-├── includes/
-│   ├── auth.php         # Core Identity Service
-│   └── sidebar.php      # Unified Admin Navigation
-└── public/
-    ├── css/style.css    # Premium Design System
-    └── js/theme-manager.js # Theme & Persistance logic
+└── index.php            # Application Landing Page
 ```
 
-##  Setup Instructions
+##  Installation Guide
+1. **Prerequisites**: Apache/PHP environment (XAMPP/WAMP/MAMP recommended).
+2. **Setup**: Clone the repository and place it in your `htdocs` or equivalent web root.
+3. **Database**: Import `database/ElmFinance_database.sql` into your local MySQL server.
+4. **Link**: Update database credentials in `config/database.php`.
+5. **Access**: Navigate to `http://localhost/ElmFinances/`. Default accounts can be created via the registration portal. 
 
-1. **Environment**: Ensure XAMPP/WAMP (Apache & MySQL) is running.
-2. **Database**: Create `elm_finance` and import the schema.
-3. **Configuration**: Set credentials in `config/database.php`.
-4. **Promotion**: To access admin features, ensure your user record in `elm_users` has `role = 'admin'`.
-5. **Access**: Navigate to `http://localhost/ElmFinances/`.
-
----
-
-**Version**: 2.0.0 (Dec 18, 2025)  
-**Status**: Stable / Optimized
